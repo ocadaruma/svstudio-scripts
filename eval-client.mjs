@@ -177,10 +177,10 @@ Options:
   -h, --help             Show this help message
 
 Examples:
-  node eval-client.mjs "print('hello')"
-  node eval-client.mjs -c 'SV:getProject():getName()'
+  node eval-client.mjs "SV:print('hello')"
+  node eval-client.mjs -c 'return SV:getProject():getDuration()'
   node eval-client.mjs -f script.lua
-  echo 'SV:getProject():getName()' | node eval-client.mjs --stdin
+  echo 'return SV:getProject():getDuration()' | node eval-client.mjs --stdin
   node eval-client.mjs --ping
   node eval-client.mjs --status
 
