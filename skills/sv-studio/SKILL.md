@@ -23,8 +23,8 @@ node ../../eval-client.mjs --status     # server info
 
 | File | Purpose | When to read |
 |------|---------|-------------|
-| `./references/SV.md` | Host object, blick conversion helpers, object factory (`SV:create`) | Entry point for all scripting |
-| `./references/Project.md` | `getTrack()`, `getNumTracks()`, `addTrack()`, `getTimeAxis()`, `getPlaybackControl()` | Project structure |
+| `./references/SV.md` | Host object, blick conversion helpers, object factory (`SV:create`), `SV:getPlayback()` | Entry point for all scripting |
+| `./references/Project.md` | `getTrack()`, `getNumTracks()`, `addTrack()`, `getTimeAxis()` | Project structure |
 | `./references/Track.md` | `getName()`, `setName()`, `getGroupReference()`, `getMixer()` | Track operations |
 | `./references/NoteGroup.md` | `getNote()`, `getNumNotes()`, `addNote()`, `removeNote()`, `getAutomation()` | Note container — re-sorting on mutation |
 | `./references/Note.md` | `getLyrics()`, `setLyrics()`, `getPitch()`, `setPitch()`, `getAttributes()`, `setAttributes()`, `setTimeRange()` | Per-note properties |
@@ -244,7 +244,7 @@ local chorusPitch = pentMap[origPitch] or (origPitch + 5)  -- fallback
 ### 7. Playback control
 
 ```lua
-local pc = SV:getProject():getPlaybackControl()
+local pc = SV:getPlayback()  -- NOT getProject():getPlaybackControl()
 pc:play()
 pc:stop()
 pc:pause()  -- stop without resetting playhead
@@ -300,12 +300,66 @@ local seconds = blicks / SV.QUARTER * 60 / bpm
 - **Undo**: One record per eval command. `project:newUndoRecord()` for new boundary.
 - **Playback uses seconds**: `seek()`, `loop()`, `getPlayhead()` take/return seconds. Convert via `TimeAxis:getBlickFromSeconds()` / `getSecondsFromBlick()`.
 
+## Syllable Breaks and Legato
+
+SV Studio handles multi-syllable words via special lyric symbols — **do NOT manually split words across notes**.
+
+### Syllable Break (`+`)
+Use `+` to continue a multi-syllable word to the next note:
+
+| Note | Lyric | Syllable |
+|---|---|---|
+| 1 | `twinkle` | First syllable |
+| 2 | `+` | Second syllable |
+
+### Legato (`-`)
+Use `-` to continue the last sung vowel into the following note (melisma):
+
+| Note | Lyric | Syllable |
+|---|---|---|
+| 1 | `amazing` | First syllable |
+| 2 | `-` | First (continued) |
+| 3 | `+` | Second syllable |
+| 4 | `+` | Third syllable |
+| 5 | `-` | Third (continued) |
+
+### Combining both
+Multi-syllable words with melismas use `+` and `-` together:
+
+| Note | Lyric | Syllable |
+|---|---|---|
+| 1 | `amazing` | First |
+| 2 | `-` | First (continued) |
+| 3 | `+` | Second |
+| 4 | `+` | Third |
+| 5 | `-` | Third (continued) |
+| 6 | `-` | Third (continued) |
+
+**Rule**: One syllable per note is best practice. Use `+` for multi-syllable words, `-` for vowel extension.
+
+## Common MIDI Note Numbers
+
+| Note | MIDI | Note | MIDI |
+|---|---|---|---|
+| C4 | 60 | D#4/ Eb4 | 63 |
+| C#4/ Db4 | 61 | E4 | 64 |
+| D4 | 62 | F4 | 65 |
+| | | F#4/ Gb4 | 66 |
+| | | G4 | 67 |
+| | | G#4/ Ab4 | 68 |
+| | | A4 | 69 |
+| | | A#4/ Bb4 | 70 |
+| | | B4 | 71 |
+| | | C5 | 72 |
+
 ## Best Practices
 
 - **Read before write**: Collect all data into tables first, then modify. Never read-modify-read in a loop.
-- **Reverse iteration for destructive ops**: `setTimeRange()`, `addNote()`, `removeNote()` — always iterate last→first.
+- **Reverse iteration for destructive ops**: `setTimeRange()`, `removeNote()` — always iterate last→first.
 - **Forward iteration for non-positional changes**: `setPitch()`, `setLyrics()`, `setAttributes()` are safe in any order.
 - **Verify after changes**: Always run a read-back script to confirm note count, order, and key properties.
 - **Ask the user when ambiguous**: e.g., "weaker vibrato" → ask for specific value before applying.
 - **Copy voice settings for harmony tracks**: `groupRef:setVoice(srcGroupRef:getVoice())` to preserve singer/voice.
 - **Main group may be empty**: The main `NoteGroupReference` (`isMain() == true`) often has 0 notes. Actual notes are usually in a non-main group.
+- **Check timeOffset before adding notes**: The group's `getTimeOffset()` may be non-zero (e.g., `-1*QUARTER`), which can push notes before the project start and clip them. Reset with `groupRef:setTimeOffset(0)` if notes should start at position 0.
+- **Avoid unnecessary pitch control points**: Adding `PitchControlPoint` objects can distort the generated pitch curve if placed incorrectly. Only add them when explicitly requested.
