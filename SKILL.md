@@ -1,3 +1,8 @@
+---
+name: sv-studio
+description: Control Synthesizer V Studio 2 Pro via the eval-client.mjs CLI. Use when the user asks to modify, inspect, or create tracks, notes, lyrics, pitch, vibrato, or any other SV Studio project data. 
+---
+
 # SV Studio Scripting via eval-client.mjs
 
 ## Overview
@@ -214,6 +219,34 @@ local pentMap = { [60]=65, [62]=67, [65]=69, [67]=72, [69]=74, [72]=75 }
 local chorusPitch = pentMap[origPitch] or (origPitch + 5)  -- fallback
 ```
 
+## Common Workflows (continued)
+
+### 7. Playback control
+
+```lua
+SV:getProject():getPlaybackControl():play()
+SV:getProject():getPlaybackControl():stop()
+SV:getProject():getPlaybackControl():seek(480)  -- seek in blicks
+```
+
+### 8. Get BPM / time signature
+
+```lua
+local timeAxis = SV:getProject():getTimeAxis()
+local bpm = timeAxis:getBpm()
+local sig = timeAxis:getSignature()
+return {bpm = bpm, signature = sig.num .. "/" .. sig.den}
+```
+
+### 9. Blicks ↔ seconds conversion
+
+```lua
+-- Seconds to blicks
+local blicks = seconds * (bpm / 60) * 480
+-- Blicks to seconds
+local seconds = blicks / ((bpm / 60) * 480)
+```
+
 ## Key Reference
 
 - **Note attributes**: `references/API.md` → `Note` section
@@ -222,3 +255,13 @@ local chorusPitch = pentMap[origPitch] or (origPitch + 5)  -- fallback
 - **Object factory**: `SV:create("Note")`, `SV:create("Track")`, etc.
 - **Return values**: `return value` → JSON. `nil` → `(null)`. `SV:print()` → SV Studio stdout.
 - **Undo**: One record per eval command. `project:newUndoRecord()` for new boundary.
+
+## Best Practices
+
+- **Read before write**: Collect all data into tables first, then modify. Never read-modify-read in a loop.
+- **Reverse iteration for destructive ops**: `setTimeRange()`, `addNote()`, `removeNote()` — always iterate last→first.
+- **Forward iteration for non-positional changes**: `setPitch()`, `setLyrics()`, `setAttributes()` are safe in any order.
+- **Verify after changes**: Always run a read-back script to confirm note count, order, and key properties.
+- **Ask the user when ambiguous**: e.g., "weaker vibrato" → ask for specific value before applying.
+- **Copy voice settings for harmony tracks**: `groupRef:setVoice(srcGroupRef:getVoice())` to preserve singer/voice.
+- **Main group may be empty**: The main `NoteGroupReference` (`isMain() == true`) often has 0 notes. Actual notes are usually in a non-main group.
