@@ -12,6 +12,7 @@ Synthesizer V Studio is controlled remotely via `eval-client.mjs`, a CLI that se
 ```bash
 node eval-client.mjs -c 'lua code here'
 node eval-client.mjs -f script.lua
+node eval-client.mjs --stdin      # read code from stdin
 node eval-client.mjs --ping       # check server alive
 node eval-client.mjs --status     # server info
 ```
@@ -22,8 +23,26 @@ node eval-client.mjs --status     # server info
 
 | File | Purpose | When to read |
 |------|---------|-------------|
-| `references/API.md` | Consolidated API reference | **Read first** — single-file lookup for all classes/methods |
-| `references/*.md` | Original JSDoc docs | Deep-dive on specific classes |
+| `references/SV.md` | Host object, blick conversion helpers, object factory (`SV:create`) | Entry point for all scripting |
+| `references/Project.md` | `getTrack()`, `getNumTracks()`, `addTrack()`, `getTimeAxis()`, `getPlaybackControl()` | Project structure |
+| `references/Track.md` | `getName()`, `setName()`, `getGroupReference()`, `getMixer()` | Track operations |
+| `references/NoteGroup.md` | `getNote()`, `getNumNotes()`, `addNote()`, `removeNote()`, `getAutomation()` | Note container — re-sorting on mutation |
+| `references/Note.md` | `getLyrics()`, `setLyrics()`, `getPitch()`, `setPitch()`, `getAttributes()`, `setAttributes()`, `setTimeRange()` | Per-note properties |
+| `references/NoteGroupReference.md` | `getVoice()`, `setVoice()`, `getTimeOffset()`, `setTimeOffset()`, `getPitchOffset()`, `setPitchOffset()`, `isMain()` | Group-level defaults |
+| `references/Automation.md` | `getPoint()`, `addPoint()`, `removePoint()`, `getParamType()` | Parameter automation (pitch deviation, etc.) |
+| `references/PitchControlCurve.md` | `getPoint()`, `addPoint()`, `removePoint()`, time-range pitch override | Pitch bend curves |
+| `references/TrackMixer.md` | `getGain()`, `setGain()`, `getPan()`, `setPan()`, `getMuted()`, `setMuted()`, `getSolo()`, `setSolo()` | Volume, pan, mute, solo |
+| `references/TimeAxis.md` | `getTempoMarkAt()`, `getMeasureMarkAt()`, `getBlickFromSeconds()`, `getSecondsFromBlick()` | Tempo, time signature, time conversion |
+| `references/PlaybackControl.md` | `play()`, `stop()`, `pause()`, `seek(seconds)`, `loop()`, `getPlayhead()`, `getStatus()` | Playback control |
+| `references/RetakeList.md` | Retake variations for note rendering | Retakes |
+| `references/ScriptableNestedObject.md` | `getScriptData()`, `setScriptData()`, `clearScriptData()` | Persistent script storage |
+| `references/NestedObject.md` | `getParent()`, `getIndexInParent()` | Base class — tree navigation |
+| `references/MainEditorView.md` | Piano roll UI state | UI scripting |
+| `references/ArrangementView.md` | Arrangement view UI state | UI scripting |
+| `references/CoordinateSystem.md` | Scrollable area navigation (time×value) | UI coordinate mapping |
+| `references/WidgetValue.md` | Bind custom UI widgets to script variables | Custom dialogs |
+| `references/tutorial-*.md` | Minimal example, custom dialogs, side panels, localization, memory management | Getting started |
+| `references/index.md` | Official scripting manual index | Full API docs |
 | `SKILL.md` | This file | Workflows, patterns, pitfalls |
 
 ## Core Data Model
@@ -159,7 +178,8 @@ groupRef:setVoice({
 local project = SV:getProject()
 
 -- Read source
-local srcGroup = project:getTrack(1):getGroupReference(2):getTarget()
+local srcGroupRef = project:getTrack(1):getGroupReference(2)
+local srcGroup = srcGroupRef:getTarget()
 local numNotes = srcGroup:getNumNotes()
 
 -- Collect data
@@ -224,37 +244,61 @@ local chorusPitch = pentMap[origPitch] or (origPitch + 5)  -- fallback
 ### 7. Playback control
 
 ```lua
-SV:getProject():getPlaybackControl():play()
-SV:getProject():getPlaybackControl():stop()
-SV:getProject():getPlaybackControl():seek(480)  -- seek in blicks
+local pc = SV:getProject():getPlaybackControl()
+pc:play()
+pc:stop()
+pc:pause()  -- stop without resetting playhead
+pc:seek(5.0)  -- seek in seconds
+pc:loop(0, 10)  -- loop between 0 and 10 seconds
+pc:getPlayhead()  -- current playhead in seconds
+pc:getStatus()  -- "playing", "looping", or "stopped"
 ```
+
+**Note**: `seek()`, `loop()`, and `getPlayhead()` all use **seconds**, not blicks. Convert with `TimeAxis` if needed.
 
 ### 8. Get BPM / time signature
 
 ```lua
 local timeAxis = SV:getProject():getTimeAxis()
-local bpm = timeAxis:getBpm()
-local sig = timeAxis:getSignature()
-return {bpm = bpm, signature = sig.num .. "/" .. sig.den}
+-- BPM at a specific position (e.g. start of project)
+local tempoMark = timeAxis:getTempoMarkAt(0)
+local bpm = tempoMark.bpm
+-- Time signature at measure 1
+local measureMark = timeAxis:getMeasureMarkAt(1)
+local sig = measureMark.numerator .. "/" .. measureMark.denominator
+return {bpm = bpm, signature = sig}
 ```
 
 ### 9. Blicks ↔ seconds conversion
 
+**Prefer TimeAxis methods** — they handle tempo changes correctly:
+
 ```lua
--- Seconds to blicks
-local blicks = seconds * (bpm / 60) * 480
--- Blicks to seconds
-local seconds = blicks / ((bpm / 60) * 480)
+local timeAxis = SV:getProject():getTimeAxis()
+local blicks = timeAxis:getBlickFromSeconds(seconds)
+local seconds = timeAxis:getSecondsFromBlick(blicks)
 ```
+
+**Manual conversion** (constant BPM only, for reference). These match `SV:seconds2Blick()` and `SV:blick2Seconds()`:
+
+```lua
+-- Seconds to blicks: s / 60 * bpm * SV.QUARTER
+local blicks = seconds / 60 * bpm * SV.QUARTER
+-- Blicks to seconds: b / SV.QUARTER * 60 / bpm
+local seconds = blicks / SV.QUARTER * 60 / bpm
+```
+
+`SV.QUARTER` = 705600000 blicks per quarter note.
 
 ## Key Reference
 
-- **Note attributes**: `references/API.md` → `Note` section
-- **Voice attributes**: `references/API.md` → `NoteGroupReference` section
+- **Note attributes**: `references/Note.md` → `getAttributes()` section
+- **Voice attributes**: `references/NoteGroupReference.md` → `getVoice()` / `setVoice()` section
 - **Time units**: `SV.QUARTER` = 705600000 blicks/quarter. All onset/duration in blicks.
 - **Object factory**: `SV:create("Note")`, `SV:create("Track")`, etc.
 - **Return values**: `return value` → JSON. `nil` → `(null)`. `SV:print()` → SV Studio stdout.
 - **Undo**: One record per eval command. `project:newUndoRecord()` for new boundary.
+- **Playback uses seconds**: `seek()`, `loop()`, `getPlayhead()` take/return seconds. Convert via `TimeAxis:getBlickFromSeconds()` / `getSecondsFromBlick()`.
 
 ## Best Practices
 
