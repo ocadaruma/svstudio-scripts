@@ -1,6 +1,6 @@
 # SVStudio Scripts
 
-Synthesizer V Studio scripts and CLI tools.
+Synthesizer V Studio scripts, CLI tools, and AI agent skills.
 
 ## EvalServer
 
@@ -92,10 +92,16 @@ The eval sandbox exposes:
 - `json` — JSON parse/stringify helper
 - Standard Lua globals: `print`, `tostring`, `type`, `pairs`, etc.
 
-### Files
+## AI Agent Skills
 
-| File | Description |
-|------|-------------|
-| `sv-scripts/StartEvalServer.lua` | The eval server (run inside SVStudio) |
-| `sv-scripts/StopEvalServer.lua` | Stop the eval server |
-| `eval-client.mjs` | Node.js CLI client for the eval server |
+The `skills/` directory contains AI agent skills for controlling SV Studio.
+
+| Skill | Description |
+|-------|-------------|
+| `skills/sv-studio/` | Full SV Studio control via eval-client.mjs |
+
+## SV Studio API Reference
+
+Refer to the [official Synthesizer V Studio scripting documentation](https://dreamtonics.com/en/synthesizerv/studio/scripting/).
+
+Crawled API docs are available under `skills/sv-studio/references/` for AI agent use.
