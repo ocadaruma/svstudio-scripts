@@ -6,6 +6,12 @@ Synthesizer V Studio scripts, CLI tools, and AI agent skills.
 
 A file-based RPC eval server that lets you execute arbitrary Lua code inside Synthesizer V Studio from external processes.
 
+<img src="./images/eval-demo.gif" width="480">
+
+This allows you the AI-centric workflow for SV Studio.
+
+You can let AI agents to write adhoc script and eval it instantly on SV Studio by `eval-client.mjs` to perform any operation.
+
 ### Architecture
 
 ```
