@@ -108,6 +108,6 @@ The `skills/` directory contains AI agent skills for controlling SV Studio.
 
 ## SV Studio API Reference
 
-Refer to the [official Synthesizer V Studio scripting documentation](https://dreamtonics.com/en/synthesizerv/studio/scripting/).
+Refer to the [official Synthesizer V Studio scripting documentation](https://resource.dreamtonics.com/scripting/index.html).
 
 Crawled API docs are available under `skills/sv-studio/references/` for AI agent use.
