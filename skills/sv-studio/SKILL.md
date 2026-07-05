@@ -7,14 +7,14 @@ description: Control Synthesizer V Studio 2 Pro via the eval-client.mjs CLI. Use
 
 ## Overview
 
-Synthesizer V Studio is controlled remotely via `eval-client.mjs` (located at `../../eval-client.mjs` from this skill directory), a CLI that sends Lua code to an EvalServer running inside SV Studio and returns results.
+Synthesizer V Studio is controlled remotely via `eval-client.mjs` (symlinked in this skill directory to the root script), a CLI that sends Lua code to an EvalServer running inside SV Studio and returns results.
 
 ```bash
-node ../../eval-client.mjs -c 'lua code here'
-node ../../eval-client.mjs -f script.lua
-node ../../eval-client.mjs --stdin      # read code from stdin
-node ../../eval-client.mjs --ping       # check server alive
-node ../../eval-client.mjs --status     # server info
+node ./eval-client.mjs -c 'lua code here'
+node ./eval-client.mjs -f script.lua
+node ./eval-client.mjs --stdin      # read code from stdin
+node ./eval-client.mjs --ping       # check server alive
+node ./eval-client.mjs --status     # server info
 ```
 
 **Key point**: All Lua code runs inside SV Studio's Lua 5.4 environment with the `SV` global object as the single entry point.
